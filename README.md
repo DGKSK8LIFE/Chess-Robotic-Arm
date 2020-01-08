@@ -4,5 +4,7 @@ Used an Arduino Uno to transmit TTL serial data to the servo controller board, a
 Model of robotic arm: Lynxmotion AL5D robotic arm
 
 Challenging project. Needed to learn a bit of Arduino cpp. Lots of precise diagrams and angles and using trigonomtery to find the exact angles the arm needed to move. Problems arose, like the arm would move too low and not pick up the piece. Another problem was the fact that the trigonometry was wrong, or too many numbers to compute; values were rounded off prematurely and the final angles were off. The code itself is a bit rough but it works.
-
+   
+![arm_picture](https://media.discordapp.net/attachments/660295888563994638/664265594039697426/IMG_0208.JPG?width=880&height=660)
+       
 Next step: Attach a camera, make a deep learning chess bot, beat myself at chess. 
