@@ -1,0 +1,15 @@
+# I used Atom + plaform.ini instead of the Arduino IDE. Many of the stuff here is b/c of that
+# Project build
+/.pio
+# Nothing important in these
+/include
+/lib
+# Mathematical tests
+/test
+
+# I don't know
+.clang_complete
+.gcc-flags.json
+.travis.yml
+
+
