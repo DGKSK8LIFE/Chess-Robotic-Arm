@@ -1,18 +1,31 @@
 #include <Arduino.h>
 #include <math.h>
 
-// Each section of robotic arm
+// Each section of robotic arm in cm
 #define a 14.75
 #define b 18.5
 #define d 11.5
 #define h 9.5
 
+// Servo numbers
 #define base 0 // theta
 #define shoulder 1 // alpha
 #define elbow 2 // beta
 #define wrist 3 // gamma
 #define claw 4 // 500: open, 2500: closed
 #define twistClaw 5
+
+#define movingTime 2500
+#define resetPosition 1500
+
+// In order of movement
+int armParts[] = {base, wrist, elbow, shoulder, claw, twistClaw};
+// Letters on the chess board
+char letters[] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'};
+// Piece names
+String pieceNames[] = {"king", "queen", "rook", "bishop", "knight", "pawn"};
+// Piece heights (cm)
+float pieceHeights[] = {9.5, 7.5, 4.5, 6.5, 5.75, 4.5};
 
 // Regular angles converted to "Servo Degrees" (500-2500)
 int convertServo(float angle) {
@@ -41,8 +54,6 @@ String WaitForInput(String Question) {
   return Serial.readStringUntil(10);
 }
 
-// Cannot return more than one angle (eg. return alpha, beta, gamma, theta;)
-// need to make this struct
 struct angles {
   int alpha;
   int beta;
@@ -61,9 +72,7 @@ struct angles calculate(int i, int j, float T) {
 
   float l = sqrt(sq(4.5 - i) + sq(0.5 + j)) * 5.75;
 
-  float w = T - 3;
-
-  float f = d + w - h;
+  float f = d + T - 3 - h;
 
   float c = sqrt(sq(f) + sq(l));
 
@@ -84,28 +93,47 @@ struct angles calculate(int i, int j, float T) {
   return angleInstance;
 }
 
-// Find the i vaule corresponding to the letter
-// TODO: make it cleaner
-int findCoord(char x_i){
-  int i;
-  switch(x_i){
-    case 'a':
-      return i = 1;
-    case 'b':
-      return i = 2;
-    case 'c':
-      return i = 3;
-    case 'd':
-      return i = 4;
-    case 'e':
-      return i = 5;
-    case 'f':
-      return i = 6;
-    case 'g':
-      return i = 7;
-    case 'h':
-      return i = 8;
+// Find the I vaule corresponding to the letter
+int findCoord(char x_i) {
+  for (int i = 0; i < 8; i++) {
+    if (letters[i] == x_i) {
+      return i + 1; // Coordinate
+    }
   }
+}
+// If I put this inside the setup(): T is not declared in this scope?
+float findPieceHeight(String piece) {
+  for (int i = 0; i < 6; i++) {
+    if (pieceNames[i] == piece) {
+      return pieceHeights[i];
+    }
+  }
+}
+
+struct coordinate {
+  int x_i;
+  int y_j;
+};
+
+struct coordinate get_i_j(String position) { // position "first" or "last"
+  struct coordinate coordInstance;
+
+  String coord = WaitForInput("Enter " + position + " coordinate: ");
+  char i = coord.charAt(0); // First character is a letter
+  char j = coord.charAt(1); // Next a number
+
+  // Converting character into integer
+  coordInstance.y_j = String(j).toInt();
+
+  // Converting letter into integer
+  coordInstance.x_i = findCoord(i);
+
+  Serial.print(position + " coordinate: ");
+  Serial.println(coord);
+
+  return coordInstance;
+
+
 }
 
 void setup() {
@@ -113,92 +141,47 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Your Arduino is awake ...");
 
-  String firstCoord = WaitForInput("Enter first coordinate: ");
-  char start_x_i = firstCoord.charAt(0); // First character is a letter
-  char start_y_j = firstCoord.charAt(1); // Next a number
-
-  // Converting character into integer
-  String _start_j = String(start_y_j);
-  int start_j = _start_j.toInt();
-
-  // Converting letter into integer
-  int start_i = findCoord(start_x_i);
-
-  Serial.print("First coordinate: ");
-  Serial.println(firstCoord);
-
-  // Same process with second coordinate
-  String lastCoord = WaitForInput("Enter last coordinate: ");
-  char end_x_i = lastCoord.charAt(0);
-  char end_y_j = lastCoord.charAt(1);
-
-  String _end_j = String(end_y_j);
-  int end_j = _end_j.toInt();
-
-  int end_i = findCoord(end_x_i);
-
-  Serial.print("Last coordinate: ");
-  Serial.println(lastCoord);
+  struct coordinate firstCoord = get_i_j("first");
+  struct coordinate lastCoord = get_i_j("last");
 
   // The angles depend on how tall the piece is (e.g. a pawn vs a queen)
-  String _T = WaitForInput("Enter piece height: ");
-  float T = _T.toFloat();
-
-  Serial.print("Height: ");
+  String piece = WaitForInput("Enter piece: ");
+  float T = findPieceHeight(piece);
+  Serial.print("Height of piece: ");
   Serial.println(T);
 
-  struct angles start = calculate(start_i, start_j, T);
-  struct angles end = calculate(end_i, end_j, T);
+  struct angles start = calculate(firstCoord.x_i, lastCoord.y_j, T);
+  struct angles end = calculate(lastCoord.x_i, lastCoord.y_j, T);
 
-  Serial.print("start theta/base: ");
-  Serial.println(start.theta);
-  Serial.print("start gamma/wrist: ");
-  Serial.println(start.gamma);
-  Serial.print("start beta/elbow: ");
-  Serial.println(start.beta);
-  Serial.print("start alpha/shoulder: ");
-  Serial.println(start.alpha);
+  // Extra space for claw
+  int startAngles[4] = {start.theta, start.gamma, start.beta, start.alpha};
+  int endAngles[4] = {end.theta, end.gamma, end.beta, end.alpha};
 
-  Serial.print("end theta/base: ");
-  Serial.println(end.theta);
-  Serial.print("end gamma/wrist: ");
-  Serial.println(end.gamma);
-  Serial.print("end beta/elbow: ");
-  Serial.println(end.beta);
-  Serial.print("end alpha/shoulder: ");
-  Serial.println(end.alpha);
-
-  // Resetting
-  for(int servos = 0; servos <= 5; servos++) {
-    move(servos, 1500, 5000);
+  // Resetting everything
+  for(int servos : armParts) {
+    move(servos, resetPosition, 5000);
   }
 
   // picking up
-  move(claw, 500, 5000);
-  move(base, start.theta, 2500);
-  move(wrist, start.gamma, 2500);
-  move(elbow, start.beta, 2500);
-  move(shoulder, start.alpha, 2500);
-  move(claw, 1850, 2500);
+  move(claw, 500, 5000); // Open claw
+  for (int i = 0; i < 5; i++) {
+    startAngles[4] = 1850; // claw value (not completely closed)
+    move(armParts[i], startAngles[i], movingTime);
+  }
 
   // setting up for placement
-  move(shoulder, 1500, 2500);
-  move(twistClaw, 500, 500);
-  move(twistClaw, 2500, 500);
-  move(twistClaw, 1500, 1500);
+  move(shoulder, resetPosition, movingTime);
 
-  // placement
-  move(base, end.theta, 2500);
-  move(wrist, end.gamma, 2500);
-  move(elbow, end.beta, 2500);
-  move(shoulder, end.alpha, 2500);
-  move(claw, 500, 2500);
+// placement
+  for (int i = 0; i < 5; i++) {
+    endAngles[4] = 500;
+    move(armParts[i], endAngles[i], movingTime);
+  }
 
-  for (int servos = 3; servos >= 0; servos--){
-    move(servos, 1500, 5000);
+  for (int i = 3; i >= 0; i--){
+    move(armParts[i], resetPosition, 5000);
   }
 }
-
 
 void loop() {
   // leave empty
